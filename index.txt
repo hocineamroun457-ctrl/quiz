@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz Familial - Divertissement pour Tous !</title>
+    <!-- Tailwind CSS pour un design moderne et responsive -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap" rel="stylesheet">
+    <!-- Canvas Confetti pour les récompenses et bonnes réponses -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            touch-action: manipulation;
+        }
+        @keyframes pulse-slow {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.03); }
+        }
+        .animate-pulse-slow {
+            animation: pulse-slow 2s infinite ease-in-out;
+        }
+        .option-btn {
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .option-btn:hover:not(:disabled) {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 20px -5px rgba(0, 0, 0, 0.2);
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-indigo-900 via-purple-900 to-pink-800 min-h-screen text-white flex flex-col justify-between p-4 sm:p-6 select-none">
+
+    <!-- En-tête -->
+    <header class="w-full max-w-2xl mx-auto flex justify-between items-center py-2">
+        <div class="flex items-center space-x-2">
+            <span class="text-3xl">🌟</span>
+            <h1 class="text-xl sm:text-2xl font-black tracking-wider bg-clip-text text-transparent bg-gradient-to-r from-yellow-300 to-pink-300">QUIZ FAMILY</h1>
+        </div>
+        <div class="flex items-center space-x-3">
+            <!-- Bouton Audio On/Off -->
+            <button id="soundToggle" onclick="toggleSound()" class="bg-white/10 hover:bg-white/20 p-2.5 rounded-full backdrop-blur-md transition text-lg" title="Activer/Désactiver les sons">
+                🔊
+            </button>
+            <div id="scoreBadge" class="bg-yellow-400 text-purple-950 font-bold px-4 py-1.5 rounded-full shadow-lg text-sm sm:text-base flex items-center space-x-1">
+                <span>🏆</span> <span id="scoreDisplay">0</span> pts
+            </div>
+        </div>
+    </header>
+
+    <!-- Conteneur Principal -->
+    <main class="w-full max-w-xl mx-auto my-auto flex flex-col items-center justify-center">
+
+        <!-- ÉCRAN D'ACCUEIL -->
+        <div id="startScreen" class="w-full bg-white/10 backdrop-blur-lg rounded-3xl p-6 sm:p-8 shadow-2xl border border-white/20 text-center flex flex-col items-center space-y-6">
+            <div class="w-24 h-24 bg-gradient-to-tr from-yellow-400 to-pink-500 rounded-full flex items-center justify-center text-5xl shadow-inner animate-pulse-slow">
+                🚀
+            </div>
+            <div>
+                <h2 class="text-2xl sm:text-3xl font-extrabold mb-2">Le Grand Quiz en Famille !</h2>
+                <p class="text-indigo-200 text-sm sm:text-base px-2">
+                    Testez vos connaissances en culture générale, pop-culture et devinettes ! 30 secondes par question. Prêt à relever le défi ?
+                </p>
+            </div>
+            <button onclick="startGame()" class="w-full py-4 bg-gradient-to-r from-yellow-400 to-pink-500 hover:from-yellow-300 hover:to-pink-400 text-purple-950 font-black text-lg rounded-2xl shadow-xl transform active:scale-95 transition">
+                C'EST PARTI ! 🎯
+            </button>
+        </div>
+
+        <!-- ÉCRAN DE JEU -->
+        <div id="gameScreen" class="w-full bg-white/10 backdrop-blur-lg rounded-3xl p-5 sm:p-8 shadow-2xl border border-white/20 hidden flex-col space-y-5">
+            
+            <!-- Barre de progression & Chronomètre -->
+            <div class="flex justify-between items-center text-sm font-semibold text-indigo-200">
+                <span id="questionCounter">Question 1 / 10</span>
+                <div class="flex items-center space-x-2 bg-black/30 px-3 py-1 rounded-full border border-white/10">
+                    <span id="timerIcon">⏳</span>
+                    <span id="timerText" class="font-mono font-bold text-yellow-300 text-base">30s</span>
+                </div>
+            </div>
+
+            <!-- Barre de temps visuelle -->
+            <div class="w-full bg-black/40 rounded-full h-2.5 overflow-hidden p-0.5 border border-white/10">
+                <div id="timerBar" class="bg-gradient-to-r from-green-400 via-yellow-400 to-red-500 h-full rounded-full transition-all duration-1000 w-full"></div>
+            </div>
+
+            <!-- Question -->
+            <div class="bg-white/5 border border-white/10 rounded-2xl p-4 sm:p-6 text-center shadow-inner">
+                <h3 id="questionText" class="text-lg sm:text-xl font-bold leading-snug"></h3>
+            </div>
+
+            <!-- Options de réponse -->
+            <div id="optionsContainer" class="grid grid-cols-1 gap-3">
+                <!-- Les boutons de réponse seront injectés ici -->
+            </div>
+        </div>
+
+        <!-- ÉCRAN DE RÉSULTAT / FIN DE PARTIE -->
+        <div id="resultScreen" class="w-full bg-white/10 backdrop-blur-lg rounded-3xl p-6 sm:p-8 shadow-2xl border border-white/20 text-center hidden flex-col space-y-6">
+            <div class="text-6xl animate-bounce" id="resultEmoji">🏆</div>
+            <div>
+                <h2 class="text-2xl sm:text-3xl font-extrabold mb-1">Partie Terminée !</h2>
+                <p id="finalMessage" class="text-indigo-200 text-sm sm:text-base"></p>
+            </div>
+            
+            <!-- Score Final & Récompense -->
+            <div class="bg-white/5 border border-white/10 rounded-2xl p-4 space-y-2">
+                <div class="text-sm text-indigo-300">Votre score final</div>
+                <div id="finalScore" class="text-4xl font-black text-yellow-300">0 / 100</div>
+                <div id="badgeContainer" class="mt-3 inline-block px-4 py-1.5 bg-gradient-to-r from-yellow-400/20 to-pink-500/20 border border-yellow-400/40 rounded-full text-yellow-200 font-bold text-sm">
+                    🌟 Badge : Super Joueur
+                </div>
+            </div>
+
+            <button onclick="restartGame()" class="w-full py-4 bg-gradient-to-r from-yellow-400 to-pink-500 hover:from-yellow-300 hover:to-pink-400 text-purple-950 font-black text-lg rounded-2xl shadow-xl transform active:scale-95 transition">
+                REJOUER 🔄
+            </button>
+        </div>
+
+    </main>
+
+    <!-- Pied de page -->
+    <footer class="w-full max-w-2xl mx-auto text-center text-xs text-indigo-300/60 py-2">
+        Quiz Familial Interactif - Jouable sur Smartphone et PC 🎮
+    </footer>
+
+    <!-- Script Logique du Jeu -->
+    <script>
+        // Banque de questions familiale (adaptée jeunes et moins jeunes)
+        const quizData = [
+            {
+                question: "Quel animal est connu pour garder sa maison sur son dos partout où il va ?",
+                options: ["Le lièvre", "L'escargot", "L'aigle", "Le renard"],
+                correct: 1,
+                fact: "L'escargot transporte sa coquille qui grandit avec lui !"
+            },
+            {
+                question: "Dans le film d'animation 'Le Roi Lion', quel est le nom du célèbre suricate ami de Pumbaa ?",
+                options: ["Simba", "Mufasa", "Timon", "Zazu"],
+                correct: 2,
+                fact: "Hakuna Matata ! Timon et Pumbaa sont inséparables."
+            },
+            {
+                question: "Combien de couleurs compose un arc-en-ciel traditionnel ?",
+                options: ["5 couleurs", "7 couleurs", "10 couleurs", "12 couleurs"],
+                correct: 1,
+                fact: "On y trouve le rouge, l'orange, le jaune, le vert, le bleu, l'indigo et le violet."
+            },
+            {
+                question: "Quelle planète de notre système solaire est surnommée la 'Planète Rouge' ?",
+                options: ["Vénus", "Mars", "Jupiter", "Saturne"],
+                correct: 1,
+                fact: "Mars doit sa couleur à l'oxyde de fer (la rouille) présent sur son sol."
+            },
+            {
+                question: "Quel célèbre plombier moustachu saute sur des champignons dans les jeux vidéo Nintendo ?",
+                options: ["Sonic", "Pac-Man", "Mario", "Luigi"],
+                correct: 2,
+                fact: "Mario est l'une des mascottes les plus célèbres de l'histoire du jeu vidéo."
+            },
+            {
+                question: "Quel ingrédient principal utilise-t-on pour fabriquer du chocolat ?",
+                options: ["Les fèves de cacao", "Le blé", "La vanille", "Le café"],
+                correct: 0,
+                fact: "Le cacao pousse dans des cabosses sur les cacaoyers sous les climats tropicaux."
+            },
+            {
+                question: "Quel est le plus grand océan de la planète Terre ?",
+                options: ["L'océan Atlantique", "L'océan Indien", "L'océan Pacifique", "L'océan Arctique"],
+                correct: 2,
+                fact: "L'océan Pacifique couvre à lui seul plus de 30 % de la surface du globe !"
+            },
+            {
+                question: "Quel animal marin géant est le plus grand animal vivant connu sur Terre ?",
+                options: ["Le grand requin blanc", "La baleine bleue", "Le calmar géant", "L'orque"],
+                correct: 1,
+                fact: "La langue d'une baleine bleue peut peser autant qu'un éléphant adulte !"
+            },
+            {
+                question: "Dans l'univers des super-héros Marvel, quel métal précieux compose le bouclier de Captain America ?",
+                options: ["Le titane", "L'adamantium", "Le vibranium", "L'acier pur"],
+                correct: 2,
+                fact: "Le vibranium absorbe les vibrations cinétiques, le rendant quasi indestructible."
+            },
+            {
+                question: "Quel monument parisien très célèbre a été construit pour l'Exposition universelle de 1889 ?",
+                options: ["L'Arc de Triomphe", "La Tour Eiffel", "Le Musée du Louvre", "La cathédrale Notre-Dame"],
+                correct: 1,
+                fact: "Conçue par Gustave Eiffel, elle mesure initialement 312 mètres de haut."
+            }
+        ];
+
+        let currentQuestionIndex = 0;
+        let score = 0;
+        let timer = null;
+        let timeLeft = 30;
+        let soundEnabled = true;
+        let isAnswerLocked = false;
+        let audioCtx = null;
+
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+        }
+
+        function playSound(type) {
+            if (!soundEnabled) return;
+            try {
+                initAudio();
+                const osc = audioCtx.createOscillator();
+                const gainNode = audioCtx.createGain();
+                osc.connect(gainNode);
+                gainNode.connect(audioCtx.destination);
+
+                const now = audioCtx.currentTime;
+
+                if (type === 'correct') {
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(440, now);
+                    osc.frequency.setValueAtTime(554.37, now + 0.1);
+                    osc.frequency.setValueAtTime(659.25, now + 0.2);
+                    gainNode.gain.setValueAtTime(0.3, now);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.4);
+                    osc.start(now);
+                    osc.stop(now + 0.4);
+                } else if (type === 'wrong') {
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(220, now);
+                    osc.frequency.setValueAtTime(150, now + 0.15);
+                    gainNode.gain.setValueAtTime(0.3, now);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+                    osc.start(now);
+                    osc.stop(now + 0.3);
+                } else if (type === 'click') {
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(600, now);
+                    gainNode.gain.setValueAtTime(0.1, now);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.05);
+                    osc.start(now);
+                    osc.stop(now + 0.05);
+                } else if (type === 'timeout') {
+                    osc.type = 'square';
+                    osc.frequency.setValueAtTime(300, now);
+                    osc.frequency.setValueAtTime(200, now + 0.2);
+                    gainNode.gain.setValueAtTime(0.2, now);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.4);
+                    osc.start(now);
+                    osc.stop(now + 0.4);
+                }
+            } catch (e) {
+                console.log("Audio non disponible", e);
+            }
+        }
+
+        function speak(text) {
+            if (!soundEnabled || !('speechSynthesis' in window)) return;
+            try {
+                window.speechSynthesis.cancel();
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.lang = 'fr-FR';
+                utterance.rate = 1.05;
+                utterance.pitch = 1.1;
+                window.speechSynthesis.speak(utterance);
+            } catch (e) {
+                console.log("Synthèse vocale non disponible", e);
+            }
+        }
+
+        function toggleSound() {
+            soundEnabled = !soundEnabled;
+            const btn = document.getElementById('soundToggle');
+            btn.textContent = soundEnabled ? '🔊' : '🔇';
+            if (soundEnabled) speak("Sons activés");
+        }
+
+        function startGame() {
+            initAudio();
+            playSound('click');
+            currentQuestionIndex = 0;
+            score = 0;
+            document.getElementById('scoreDisplay').textContent = score;
+            document.getElementById('startScreen').classList.add('hidden');
+            document.getElementById('resultScreen').classList.add('hidden');
+            document.getElementById('gameScreen').classList.remove('hidden');
+            document.getElementById('gameScreen').style.display = 'flex';
+            
+            speak("C'est parti ! Bonne chance à tous.");
+            loadQuestion();
+        }
+
+        function loadQuestion() {
+            isAnswerLocked = false;
+            clearInterval(timer);
+            timeLeft = 30;
+
+            const q = quizData[currentQuestionIndex];
+            document.getElementById('questionCounter').textContent = `Question ${currentQuestionIndex + 1} / ${quizData.length}`;
+            document.getElementById('questionText').textContent = q.question;
+            
+            speak(q.question);
+
+            const optionsContainer = document.getElementById('optionsContainer');
+            optionsContainer.innerHTML = '';
+
+            q.options.forEach((opt, index) => {
+                const btn = document.createElement('button');
+                btn.className = 'option-btn w-full p-4 bg-white/10 hover:bg-white/20 border border-white/20 rounded-2xl font-semibold text-left sm:text-base flex justify-between items-center group cursor-pointer';
+                btn.innerHTML = `<span>${opt}</span> <span class="w-6 h-6 rounded-full bg-white/10 group-hover:bg-white/30 flex items-center justify-center text-xs text-indigo-200">➔</span>`;
+                btn.onclick = () => selectAnswer(index);
+                optionsContainer.appendChild(btn);
+            });
+
+            startTimer();
+        }
+
+        function startTimer() {
+            const timerText = document.getElementById('timerText');
+            const timerBar = document.getElementById('timerBar');
+            
+            timerBar.style.width = '100%';
+            timerText.textContent = `${timeLeft}s`;
+
+            timer = setInterval(() => {
+                timeLeft--;
+                timerText.textContent = `${timeLeft}s`;
+                const percentage = (timeLeft / 30) * 100;
+                timerBar.style.width = `${percentage}%`;
+
+                if (timeLeft <= 5 && timeLeft > 0) {
+                    playSound('click');
+                }
+
+                if (timeLeft <= 0) {
+                    clearInterval(timer);
+                    handleTimeOut();
+                }
+            }, 1000);
+        }
+
+        function handleTimeOut() {
+            if (isAnswerLocked) return;
+            isAnswerLocked = true;
+            playSound('timeout');
+            speak("Temps écoulé !");
+            highlightCorrectAnswer();
+            
+            setTimeout(() => {
+                nextQuestion();
+            }, 2500);
+        }
+
+        function selectAnswer(selectedIndex) {
+            if (isAnswerLocked) return;
+            isAnswerLocked = true;
+            clearInterval(timer);
+            playSound('click');
+
+            const q = quizData[currentQuestionIndex];
+            const buttons = document.getElementById('optionsContainer').children;
+
+            if (selectedIndex === q.correct) {
+                buttons[selectedIndex].className = 'option-btn w-full p-4 bg-green-500/80 border border-green-300 text-white rounded-2xl font-semibold text-left flex justify-between items-center shadow-lg';
+                score += 10 + Math.floor(timeLeft / 3);
+                document.getElementById('scoreDisplay').textContent = score;
+                playSound('correct');
+                
+                const encouragements = ["Bravo !", "Super !", "Excellent !", "Magnifique !"];
+                const randomEnc = encouragements[Math.floor(Math.random() * encouragements.length)];
+                speak(`${randomEnc} ${q.fact}`);
+                
+                if (typeof confetti === 'function') {
+                    confetti({
+                        particleCount: 50,
+                        spread: 60,
+                        origin: { y: 0.7 }
+                    });
+                }
+            } else {
+                buttons[selectedIndex].className = 'option-btn w-full p-4 bg-red-500/80 border border-red-300 text-white rounded-2xl font-semibold text-left flex justify-between items-center shadow-lg';
+                buttons[q.correct].className = 'option-btn w-full p-4 bg-green-500/80 border border-green-300 text-white rounded-2xl font-semibold text-left flex justify-between items-center shadow-lg';
+                playSound('wrong');
+                speak(`Dommage. La bonne réponse était : ${q.options[q.correct]}`);
+            }
+
+            setTimeout(() => {
+                nextQuestion();
+            }, 3500);
+        }
+
+        function highlightCorrectAnswer() {
+            const q = quizData[currentQuestionIndex];
+            const buttons = document.getElementById('optionsContainer').children;
+            if (buttons[q.correct]) {
+                buttons[q.correct].className = 'option-btn w-full p-4 bg-green-500/80 border border-green-300 text-white rounded-2xl font-semibold text-left flex justify-between items-center shadow-lg';
+            }
+        }
+
+        function nextQuestion() {
+            currentQuestionIndex++;
+            if (currentQuestionIndex < quizData.length) {
+                loadQuestion();
+            } else {
+                endGame();
+            }
+        }
+
+        function endGame() {
+            document.getElementById('gameScreen').classList.add('hidden');
+            document.getElementById('resultScreen').classList.remove('hidden');
+            document.getElementById('resultScreen').style.display = 'flex';
+
+            const finalScoreEl = document.getElementById('finalScore');
+            finalScoreEl.textContent = `${score} pts`;
+
+            let badge = "🌟 Explorateur Curieux";
+            let message = "Belle performance ! Continue d'apprendre et de t'amuser en famille !";
+            let emoji = "🎉";
+
+            const percentage = (score / (quizData.length * 10)) * 100;
+
+            if (percentage >= 90) {
+                badge = "👑 Maître de la Culture Familiale";
+                message = "Incroyable ! Tu connais tout sur tout, c'est un sans-faute ou presque !";
+                emoji = "🏆";
+            } else if (percentage >= 60) {
+                badge = "🥇 Expert Brillant";
+                message = "Superbe score ! Tu as une excellente culture générale.";
+                emoji = "⭐";
+            } else if (percentage >= 30) {
+                badge = "🥈 Bon Apprenti";
+                message = "Pas mal du tout ! Encore un petit effort et tu seras le champion.";
+                emoji = "🚀";
+            }
+
+            document.getElementById('badgeContainer').textContent = `Badge : ${badge}`;
+            document.getElementById('finalMessage').textContent = message;
+            document.getElementById('resultEmoji').textContent = emoji;
+
+            speak(`Partie terminée ! Votre score final est de ${score} points. ${message}`);
+
+            if (typeof confetti === 'function') {
+                confetti({
+                    particleCount: 150,
+                    spread: 100,
+                    origin: { y: 0.6 }
+                });
+            }
+        }
+
+        function restartGame() {
+            playSound('click');
+            startGame();
+        }
+    </script>
+
+</body>
+</html>
